@@ -1,0 +1,126 @@
+---
+- name: Configurar VM Windows 11 según requerimientos
+  hosts: windows
+  gather_facts: no
+  vars:
+    desktop_all_users: 'C:\Users\Public\Desktop'
+
+  tasks:
+
+    # ========================
+    # FIREWALL
+    # ========================
+    - name: Desactivar firewall en todos los perfiles
+      win_shell: Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False
+      ignore_errors: yes
+
+    # ========================
+    # RDP (Escritorio remoto)
+    # ========================
+    - name: Habilitar RDP
+      win_shell: Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server" -Name "fDenyTSConnections" -Value 0
+
+    - name: Permitir RDP en el firewall (compatible con cualquier idioma)
+      win_shell: |
+        $rules = Get-NetFirewallRule | Where-Object { $_.DisplayName -match "Desktop|Escritorio" }
+        if ($rules) {
+            $rules | Enable-NetFirewallRule
+        } else {
+            $rule = Get-NetFirewallRule -Name "RemoteDesktop-UserMode-In-TCP" -ErrorAction SilentlyContinue
+            if ($rule) { Enable-NetFirewallRule -Name "RemoteDesktop-UserMode-In-TCP" }
+        }
+
+    # ========================
+    # OPCIONES DE ENERGÍA
+    # ========================
+    - name: Evitar que la pantalla se apague nunca (corriente alterna)
+      win_shell: powercfg /change monitor-timeout-ac 0
+
+    - name: Evitar que la pantalla se apague nunca (batería)
+      win_shell: powercfg /change monitor-timeout-dc 0
+
+    - name: Configurar botones de inicio/apagado y suspensión en “No hacer nada”
+      win_shell: |
+        powercfg /setacvalueindex scheme_current SUB_BUTTONS PBUTTONACTION 0
+        powercfg /setacvalueindex scheme_current SUB_BUTTONS SBUTTONACTION 0
+        powercfg /setacvalueindex scheme_current SUB_BUTTONS LIDACTION 0
+        powercfg /setactive scheme_current
+
+    # ========================
+    # DESHABILITAR SERVICIOS
+    # ========================
+    - name: Deshabilitar servicio SysMain
+      win_service:
+        name: SysMain
+        start_mode: disabled
+        state: stopped
+
+    - name: Deshabilitar servicio BITS
+      win_service:
+        name: BITS
+        start_mode: disabled
+        state: stopped
+
+    - name: Deshabilitar servicio de Telemetría (Connected User Experiences and Telemetry)
+      win_service:
+        name: DiagTrack
+        start_mode: disabled
+        state: stopped
+
+    # ========================
+    # ACCESOS DIRECTOS EN ESCRITORIO PÚBLICO
+    # ========================
+    - name: Crear acceso directo de PowerShell
+      win_shortcut:
+        src: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe'
+        dest: '{{ desktop_all_users }}\PowerShell.lnk'
+        icon: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe'
+        description: 'Windows PowerShell'
+
+    - name: Crear acceso directo de PowerShell ISE
+      win_shortcut:
+        src: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell_ise.exe'
+        dest: '{{ desktop_all_users }}\PowerShell ISE.lnk'
+        icon: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell_ise.exe'
+        description: 'PowerShell Integrated Scripting Environment'
+
+    - name: Crear acceso directo de CMD
+      win_shortcut:
+        src: 'C:\Windows\System32\cmd.exe'
+        dest: '{{ desktop_all_users }}\Command Prompt.lnk'
+        icon: 'C:\Windows\System32\cmd.exe'
+        description: 'Símbolo del sistema'
+
+    - name: Activar "Run as Administrator" en los accesos directos
+      win_shell: |
+        $shortcuts = @(
+          '{{ desktop_all_users }}\PowerShell.lnk',
+          '{{ desktop_all_users }}\PowerShell ISE.lnk',
+          '{{ desktop_all_users }}\Command Prompt.lnk'
+        )
+        foreach ($sc in $shortcuts) {
+          $f = $sc
+          $bytes = [System.IO.File]::ReadAllBytes($f)
+          $bytes[21] = $bytes[21] -bor 0x20
+          [System.IO.File]::WriteAllBytes($f, $bytes)
+        }
+
+    # ========================
+    # CAMBIO DE NOMBRE
+    # ========================
+    - name: Cambiar el nombre de la máquina a PC02 sin reiniciar
+      win_shell: Rename-Computer -NewName "PC02" -Force
+      register: rename_result
+
+    - name: Mostrar resultado del cambio de nombre
+      debug:
+        var: rename_result.stdout_lines
+
+    # ========================
+    # REINICIO DEL SISTEMA
+    # ========================
+    - name: Reiniciar la máquina para aplicar cambios
+      win_reboot:
+        reboot_timeout: 600
+        pre_reboot_delay: 5
+        post_reboot_delay: 10
