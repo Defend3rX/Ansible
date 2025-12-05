@@ -1,0 +1,5 @@
+---
+- import_playbook: sandbox_win11_config.yml
+- import_playbook: sandbox_win11_config_actualizaciones.yml
+- import_playbook: sandbox_win11_copy_tools.yml
+- import_playbook: sandbox_win11_apps_pre_uninstall.yml
