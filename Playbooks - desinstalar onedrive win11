@@ -1,0 +1,12 @@
+- name: Desinstalar OneDrive en Windows 11
+  hosts: windows
+  gather_facts: no
+  tasks:
+    - name: Desinstalar OneDrive usando winget
+      win_shell: |
+        $onedrive = winget list --name "Microsoft OneDrive" | Select-String "Microsoft OneDrive"
+        if ($onedrive) {
+            winget uninstall --id Microsoft.OneDrive --silent
+        } else {
+            Write-Output "OneDrive no está instalado o ya fue eliminado"
+        }
