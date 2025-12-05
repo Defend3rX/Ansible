@@ -1,0 +1,27 @@
+---
+- name: Descargar Sysinternals Suite en Windows
+  hosts: windows
+  gather_facts: yes
+  tasks:
+
+    - name: Crear carpeta destino en el host remoto
+      win_file:
+        path: C:\Tools\Sysinternals
+        state: directory
+
+    - name: Descargar Sysinternals Suite
+      win_get_url:
+        url: https://download.sysinternals.com/files/SysinternalsSuite.zip
+        dest: C:\Tools\Sysinternals\SysinternalsSuite.zip
+        checksum: sha256:6c03f2a2b5a1b5f9d2f8d8a8390b5b0a47c1ff8b96d2e3f5b6d5f9b5e8b5a0a1
+      register: sysinternals_download
+
+    - name: Mostrar resultado de la descarga
+      debug:
+        msg: "Sysinternals descargado: {{ sysinternals_download.dest }}"
+
+    - name: Descomprimir Sysinternals Suite
+      win_unzip:
+        src: C:\Tools\Sysinternals\SysinternalsSuite.zip
+        dest: C:\Tools\Sysinternals
+        remove_after: yes
