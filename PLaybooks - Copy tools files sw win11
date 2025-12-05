@@ -1,0 +1,30 @@
+- name: Copiar herramientas al host Windows
+  hosts: windows
+  gather_facts: no
+
+  tasks:
+    # Crear carpeta C:\tools
+    - name: Crear carpeta C:\tools
+      win_file:
+        path: C:\tools
+        state: directory
+
+    # Copiar todo el contenido de playbooks/files/tools (archivos + subcarpetas)
+    - name: Copiar todo desde playbooks/files/tools
+      win_copy:
+        src: /ansible/playbooks/files/tools/
+        dest: C:\tools\
+        recurse: yes
+
+    # Crear carpeta C:\yara
+    - name: Crear carpeta C:\yara
+      win_file:
+        path: C:\yara
+        state: directory
+
+    # Copiar todo el contenido de playbooks/files/yara (archivos + subcarpetas)
+    - name: Copiar todo desde playbooks/files/yara
+      win_copy:
+        src: /ansible/playbooks/files/yara/
+        dest: C:\yara\
+        recurse: yes
